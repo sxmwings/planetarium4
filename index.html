@@ -269,6 +269,36 @@ html, body {
   padding: 20px;
   color: var(--muted);
 }
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 </style>
 </head>
 <body>
@@ -277,7 +307,7 @@ html, body {
     <div class="logo">🪐</div>
     <div style="flex: 1">
       <div class="title">Planetarium</div>
-      <div class="small">Programme · Analyse & Heatmap</div>
+      <div class="small">HYBRID MASTER 51 • Programme 26 semaines</div>
     </div>
     <button class="btn ios primary" onclick="openDayExerciseManager()">🧩 Gérer les exercices</button>
   </div>
@@ -287,7 +317,10 @@ html, body {
       <div class="card row" style="justify-content: space-between; align-items: center; margin-bottom: 16px">
         <div>
           <div style="font-weight: 800; font-size: 20px">Semaine <span id="weekDisplay">1</span></div>
-          <div class="small" id="blockName">Bloc 1 - Fondation</div>
+          <div class="small" id="blockName">Bloc 1 - Fondation • Tempo 3-1-2</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="weekProgress" style="width: 4%"></div>
+          </div>
         </div>
         <div class="row">
           <button id="prevWeek" class="btn ios">← Préc.</button>
@@ -301,7 +334,7 @@ html, body {
 
       <div class="card" style="margin-bottom: 16px">
         <div style="font-weight: 800; font-size: 18px; margin-bottom: 8px">Séances disponibles</div>
-        <div class="small" style="margin-bottom: 12px">Cliquez pour ouvrir</div>
+        <div class="small" style="margin-bottom: 12px">Cliquez pour ouvrir • RPE cible: 6-7</div>
         <div id="progList" class="session-list"></div>
       </div>
 
@@ -319,6 +352,13 @@ html, body {
         </div>
       </div>
 
+      <div class="card" style="margin-bottom: 16px">
+        <div style="font-weight: 800; font-size: 18px; margin-bottom: 12px">Progression</div>
+        <div id="progressionInfo" class="small">
+          Charge actuelle vs objectif S26
+        </div>
+      </div>
+
       <div class="card">
         <div style="font-weight: 800; font-size: 18px; margin-bottom: 12px">Heatmap de charge (semaine)</div>
         <div id="heatmap" class="heatmap"></div>
@@ -327,7 +367,7 @@ html, body {
   </div>
 
   <div class="footer small">
-    © 2025 — Planetarium • HYBRID MASTER 51
+    © 2025 — Planetarium • HYBRID MASTER 51 • 26 semaines • 3 séances/semaine
   </div>
 </div>
 
@@ -344,44 +384,58 @@ html, body {
 
 <script>
 // ========== STATE & DATA ==========
-const STATE_KEY = 'hm51_planetarium_v1';
+const STATE_KEY = 'hm51_planetarium_v2';
 let state = null;
 let currentSessionKey = null;
 let exerciseView = false;
 let restInterval = null, restRemaining = 0, restTotal = 0;
 
-// Programme HYBRID MASTER 51 basé sur le JSON
+// Programme HYBRID MASTER 51 complet basé sur le JSON
 const PROGRAM = {
   dimanche: {
     key: 'dimanche',
     title: 'Dimanche - Dos + Jambes',
     exercises: [
-      { name: 'Trap Bar Deadlift', sets: 5, reps: '6-8', rest: 120, weight: 75, tech: 'RPE 6-8' },
-      { name: 'Goblet Squat', sets: 4, reps: '10', rest: 75, weight: 25, tech: 'Tempo 3-1-2' },
-      { name: 'Lat Pulldown', sets: 4, reps: '10', rest: 90, weight: 60, tech: 'Contrôle' },
-      { name: 'Spider Curl', sets: 4, reps: '12', rest: 75, weight: 12, tech: 'Tempo 2-1-2' }
+      { name: 'Trap Bar Deadlift', sets: 5, reps: '6-8', rest: 120, weight: 75, tech: 'RPE 6-8 • Technique: Dos droit, poussée jambes' },
+      { name: 'Goblet Squat', sets: 4, reps: '10', rest: 75, weight: 25, tech: 'Tempo 3-1-2 • Descendre contrôle' },
+      { name: 'Lat Pulldown', sets: 4, reps: '10', rest: 90, weight: 60, tech: 'Poitrine vers la barre' },
+      { name: 'Spider Curl', sets: 4, reps: '12', rest: 75, weight: 12, tech: 'Bras perpendiculaires au sol' },
+      { name: 'Cable Pushdown', sets: 4, reps: '12', rest: 75, weight: 25, tech: 'Coudes fixes' }
     ]
   },
   mardi: {
     key: 'mardi',
     title: 'Mardi - Pecs + Épaules',
     exercises: [
-      { name: 'Dumbbell Press', sets: 5, reps: '10', rest: 105, weight: 22, tech: 'Cluster sets' },
-      { name: 'Cable Fly', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Tension continue' },
-      { name: 'Lateral Raises', sets: 5, reps: '15', rest: 75, weight: 8, tech: 'Contrôle' },
-      { name: 'Face Pull', sets: 5, reps: '15', rest: 60, weight: 20, tech: 'Myo-Reps' }
+      { name: 'Dumbbell Press', sets: 5, reps: '10', rest: 105, weight: 22, tech: 'Cluster sets • 3-4 mini-pauses' },
+      { name: 'Cable Fly (poulies moyennes)', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Tension continue • Écartement poitrine' },
+      { name: 'Lateral Raises', sets: 5, reps: '15', rest: 75, weight: 8, tech: 'Contrôle descente • Épaules basses' },
+      { name: 'Face Pull', sets: 5, reps: '15', rest: 60, weight: 20, tech: 'Myo-Reps • Rétraction omoplates' },
+      { name: 'Hammer Curl', sets: 3, reps: '12', rest: 60, weight: 12, tech: 'Coude fixe • Contraction biceps' }
     ]
   },
   vendredi: {
     key: 'vendredi',
-    title: 'Vendredi - Full',
+    title: 'Vendredi - Full Corps',
     exercises: [
-      { name: 'Landmine Row', sets: 5, reps: '10', rest: 105, weight: 55, tech: 'Tempo 2-1-2' },
-      { name: 'Leg Curl', sets: 5, reps: '12', rest: 75, weight: 40, tech: 'Contrôle' },
-      { name: 'Dumbbell Fly', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Étirement' },
-      { name: 'EZ Bar Curl', sets: 5, reps: '12', rest: 75, weight: 25, tech: 'Myo-Reps' }
+      { name: 'Landmine Row', sets: 5, reps: '10', rest: 105, weight: 55, tech: 'Tempo 2-1-2 • Dos parallèle au sol' },
+      { name: 'Leg Curl', sets: 5, reps: '12', rest: 75, weight: 40, tech: 'Isolation ischio • Contraction maximale' },
+      { name: 'Leg Extension', sets: 5, reps: '12', rest: 75, weight: 40, tech: 'Extension complète • Contrôle négatif' },
+      { name: 'Dumbbell Fly', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Étirement pectoraux • Arc de cercle' },
+      { name: 'EZ Bar Curl', sets: 5, reps: '12', rest: 75, weight: 25, tech: 'Myo-Reps • Supination complète' },
+      { name: 'Overhead Extension', sets: 5, reps: '12', rest: 75, weight: 20, tech: 'Tête derrière la tête • Triceps stretch' },
+      { name: 'Wrist Curl', sets: 3, reps: '20', rest: 45, weight: 30, tech: 'Avant-bras sur cuisse • Amplitude complète' }
     ]
   }
+};
+
+// Objectifs de progression
+const PROGRESSION_TARGETS = {
+  'Trap Bar Deadlift': { start: 75, target: 120, increment: 5 },
+  'Dumbbell Press': { start: 22, target: 45, increment: 2.5 },
+  'Lateral Raises': { start: 8, target: 23, increment: 2.5 },
+  'EZ Bar Curl': { start: 25, target: 47.5, increment: 2.5 },
+  'Leg Press': { start: 110, target: 240, increment: 10 }
 };
 
 function defaultState() {
@@ -390,11 +444,20 @@ function defaultState() {
     program: JSON.parse(JSON.stringify(PROGRAM)),
     weights: {},
     hist: {},
-    customExercises: []
+    customExercises: [],
+    personalRecords: {}
   };
-  Object.values(s.program).forEach(sess => 
-    sess.exercises.forEach(e => s.weights[e.name] = e.weight || 0)
-  );
+  
+  // Initialiser les poids
+  Object.values(s.program).forEach(sess => {
+    sess.exercises.forEach(ex => {
+      s.weights[ex.name] = ex.weight || 0;
+      if (!s.personalRecords[ex.name]) {
+        s.personalRecords[ex.name] = { weight: ex.weight, reps: parseInt(String(ex.reps).split('-')[0]) || ex.reps };
+      }
+    });
+  });
+  
   return s;
 }
 
@@ -421,6 +484,7 @@ function init() {
   state = loadState();
   setupEventListeners();
   renderAll();
+  updateProgressionInfo();
 }
 
 function setupEventListeners() {
@@ -436,10 +500,19 @@ function setupEventListeners() {
 // ========== RENDER FUNCTIONS ==========
 function renderHeader() {
   document.getElementById('weekDisplay').textContent = state.week;
+  const progress = (state.week / 26) * 100;
+  document.getElementById('weekProgress').style.width = `${progress}%`;
+  
   const block = document.getElementById('blockName');
-  if (state.week <= 5) block.textContent = 'Bloc 1 - Fondation';
-  else if (state.week <= 11) block.textContent = 'Bloc 2 - Surcharge';
-  else block.textContent = 'Bloc 3 - Intensification';
+  if (state.week <= 5) {
+    block.textContent = 'Bloc 1 - Fondation • Tempo 3-1-2 • RPE 6-7';
+  } else if (state.week <= 11) {
+    block.textContent = 'Bloc 2 - Surcharge • Rest-Pause • RPE 7-8';
+  } else if (state.week <= 17) {
+    block.textContent = 'Bloc 3 - Intensification • Drop-Sets + Myo-Reps • RPE 8';
+  } else {
+    block.textContent = 'Bloc 4 - Peak • Clusters + Myo-Reps • RPE 8-9';
+  }
 }
 
 function renderProgramList() {
@@ -451,7 +524,7 @@ function renderProgramList() {
     btn.className = 'session-btn';
     btn.innerHTML = `
       <div style="font-weight: 800; font-size: 16px">${s.title}</div>
-      <div class="small">${s.exercises.length} ex • ${totalSets} séries</div>
+      <div class="small">${s.exercises.length} exercices • ${totalSets} séries</div>
     `;
     btn.onclick = () => openSession(s.key);
     list.appendChild(btn);
@@ -494,10 +567,37 @@ function renderHeatmap() {
   });
 }
 
+function updateProgressionInfo() {
+  const info = document.getElementById('progressionInfo');
+  let html = '';
+  
+  Object.keys(PROGRESSION_TARGETS).forEach(exName => {
+    const target = PROGRESSION_TARGETS[exName];
+    const current = state.weights[exName] || target.start;
+    const progress = ((current - target.start) / (target.target - target.start)) * 100;
+    const progressPercent = Math.min(100, Math.max(0, progress));
+    
+    html += `
+      <div style="margin-bottom: 12px">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px">
+          <span class="small">${exName}</span>
+          <span class="small">${current}kg / ${target.target}kg</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${progressPercent}%"></div>
+        </div>
+      </div>
+    `;
+  });
+  
+  info.innerHTML = html;
+}
+
 function renderAll() {
   renderHeader();
   renderProgramList();
   renderHeatmap();
+  updateProgressionInfo();
 }
 
 // ========== SESSION MANAGEMENT ==========
@@ -514,8 +614,8 @@ function openSession(key) {
     <div style="display: flex; justify-content: space-between; align-items: center">
       <div style="font-weight: 800; font-size: 18px">${state.program[key].title}</div>
       <div class="row">
-        <button class="btn ios" onclick="openAddExerciseModal('${key}')">➕ Ajouter</button>
-        <button class="btn ios danger" onclick="clearSession('${key}')">🗑️ Vider</button>
+        <button class="btn ios" onclick="openAddExerciseModal('${key}')">➕ Ajouter exercice</button>
+        <button class="btn ios danger" onclick="clearSession('${key}')">🗑️ Vider séance</button>
       </div>
     </div>
   `;
@@ -533,6 +633,7 @@ function openSession(key) {
       <div style="flex: 1">
         <div class="exercise-name">${ex.name}</div>
         <div class="exercise-meta">${ex.sets}× ${ex.reps} • ${ex.rest}s • ${state.weights[ex.name] || ex.weight}kg</div>
+        <div class="small" style="margin-top: 4px; color: var(--accent)">${getCurrentTechnique(ex)}</div>
       </div>
       <div style="color: var(--accent); font-size: 18px">▼</div>
     `;
@@ -548,6 +649,13 @@ function openSession(key) {
   });
 
   showQuick('Séance ouverte', '#ffb347');
+}
+
+function getCurrentTechnique(ex) {
+  if (state.week <= 5) return 'Tempo 3-1-2';
+  if (state.week <= 11) return ex.name.includes('Deadlift') || ex.name.includes('Press') || ex.name.includes('Row') ? 'Rest-Pause dernière série' : 'Standard';
+  if (state.week <= 17) return 'Drop-Sets + Myo-Reps';
+  return 'Clusters + Myo-Reps';
 }
 
 function toggleDetails(ex) {
@@ -592,12 +700,27 @@ function renderExerciseDetails(ex) {
     `;
   }
 
+  // Historique des performances
+  let historyHtml = '';
+  if (state.hist[ex.name] && state.hist[ex.name].length > 0) {
+    const recent = state.hist[ex.name].slice(-3).reverse();
+    historyHtml = `
+      <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px; margin: 12px 0;">
+        <div class="small" style="color: var(--accent); margin-bottom: 8px;">📈 Dernières performances:</div>
+        ${recent.map(rec => `
+          <div class="small">S${rec.week}: ${rec.weight}kg × ${rec.reps} reps</div>
+        `).join('')}
+      </div>
+    `;
+  }
+
   details.innerHTML = `
     <div class="technique-banner">✨ ${ex.tech}</div>
+    ${historyHtml}
     ${setsHtml}
-    <div style="display: flex; gap: 12px; margin-top: 16px">
-      <button class="btn ios primary" onclick="savePerf('${encodeURIComponent(ex.name)}')">💾 Enregistrer</button>
-      <button class="btn ios" onclick="openModifyWeight('${encodeURIComponent(ex.name)}')">✏️ Poids</button>
+    <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
+      <button class="btn ios primary" onclick="savePerf('${encodeURIComponent(ex.name)}')">💾 Enregistrer série</button>
+      <button class="btn ios" onclick="openModifyWeight('${encodeURIComponent(ex.name)}')">✏️ Modifier poids</button>
       <button class="btn ios" onclick="startRestCountdown(${ex.rest}, '${ex.name}')">⏱️ Repos ${ex.rest}s</button>
       <button class="btn ios danger" onclick="removeExerciseFromSession('${encodeURIComponent(ex.name)}')">🗑️ Retirer</button>
     </div>
@@ -672,9 +795,12 @@ function clearSession(sessionKey) {
 
 function openModifyWeight(encodedName) {
   const name = decodeURIComponent(encodedName);
+  const target = PROGRESSION_TARGETS[name];
+  const targetInfo = target ? ` (Objectif S26: ${target.target}kg)` : '';
+  
   openModal(`
-    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">${name}</h3>
-    <input id="modalNewWeight" type="number" class="set-input" value="${state.weights[name] || 0}" 
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">${name}${targetInfo}</h3>
+    <input id="modalNewWeight" type="number" step="0.5" class="set-input" value="${state.weights[name] || 0}" 
            style="width: 100%; padding: 14px; font-size: 16px" />
     <div style="display: flex; gap: 12px; margin-top: 20px">
       <button class="btn ios primary" onclick="saveWeight('${encodeURIComponent(name)}')">Enregistrer</button>
@@ -695,6 +821,7 @@ function saveWeight(encodedName) {
   state.weights[name] = v;
   saveState();
   closeModal();
+  updateProgressionInfo();
   if (currentSessionKey) openSession(currentSessionKey);
   showQuick(`Poids ${name}: ${old} → ${v} kg`, '#10b981');
 }
@@ -738,6 +865,13 @@ function savePerf(encodedName) {
     ts: Date.now(),
     allSets: sets
   });
+  
+  // Mettre à jour le record personnel
+  if (!state.personalRecords[name] || best.w > state.personalRecords[name].weight || 
+      (best.w === state.personalRecords[name].weight && best.r > state.personalRecords[name].reps)) {
+    state.personalRecords[name] = { weight: best.w, reps: best.r };
+  }
+  
   state.weights[name] = best.w;
   saveState();
   showQuick(`✅ ${name}: ${best.r} reps @ ${best.w}kg`);
@@ -808,7 +942,7 @@ function closeModal() {
 // ========== DAY EXERCISE MANAGER ==========
 function openDayExerciseManager() {
   let html = `
-    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📅 Gérer les Séances</h3>
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📅 Gérer les Séances - HYBRID MASTER 51</h3>
     <div style="display: flex; flex-direction: column; gap: 16px">
   `;
   
@@ -817,11 +951,11 @@ function openDayExerciseManager() {
       <div style="background: rgba(255, 255, 255, 0.03); padding: 20px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05)">
         <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px">${s.title}</div>
         <div class="small" style="margin-bottom: 12px">
-          ${s.exercises.map(e => e.name).join(' • ') || '<em style="opacity: 0.6">Aucun exercice</em>'}
+          ${s.exercises.map(e => `${e.name} (${e.sets}×${e.reps})`).join(' • ') || '<em style="opacity: 0.6">Aucun exercice</em>'}
         </div>
-        <div style="display: flex; gap: 8px">
-          <button class="btn ios" onclick="openAddExerciseModal('${s.key}'); closeModal();">➕ Ajouter</button>
-          <button class="btn ios danger" onclick="clearSession('${s.key}'); closeModal();">🗑️ Vider</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn ios" onclick="openAddExerciseModal('${s.key}'); closeModal();">➕ Ajouter exercice</button>
+          <button class="btn ios danger" onclick="clearSession('${s.key}'); closeModal();">🗑️ Vider séance</button>
         </div>
       </div>
     `;
@@ -830,6 +964,143 @@ function openDayExerciseManager() {
   html += `</div>`;
   openModal(html);
   showQuick('Gestion exercices ouverte', '#ffb347');
+}
+
+// ========== STATISTIQUES AVANCÉES ==========
+function openStats() {
+  const volumeTotal = calculateTotalVolume();
+  const progressData = calculateProgressData();
+  
+  openModal(`
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📊 Statistiques Détaillées - S${state.week}</h3>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="small">Volume Total Semaine</div>
+        <div style="font-weight: 800; font-size: 24px; color: var(--accent)">${Math.round(volumeTotal / 1000)}k kg</div>
+      </div>
+      <div class="stat-card">
+        <div class="small">Séances Completées</div>
+        <div style="font-weight: 800; font-size: 24px; color: var(--accent)">${Object.keys(state.hist).length}</div>
+      </div>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <div style="font-weight: 700; margin-bottom: 12px; color: var(--accent)">Progression des Charges</div>
+      <canvas id="chartProgress" style="width: 100%; height: 200px"></canvas>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <div style="font-weight: 700; margin-bottom: 12px; color: var(--accent)">Volume par Groupe Musculaire</div>
+      <canvas id="chartMuscleVolume" style="width: 100%; height: 200px"></canvas>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <div style="font-weight: 700; margin-bottom: 12px; color: var(--accent)">Records Personnels</div>
+      <div style="max-height: 200px; overflow-y: auto;">
+        ${Object.entries(state.personalRecords)
+          .filter(([_, rec]) => rec.weight > 0)
+          .map(([exName, rec]) => `
+            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1)">
+              <span class="small">${exName}</span>
+              <span style="color: var(--accent); font-weight: 700">${rec.weight}kg × ${rec.reps}</span>
+            </div>
+          `).join('')}
+      </div>
+    </div>
+  `);
+  
+  setTimeout(() => {
+    try {
+      renderAdvancedCharts(progressData);
+    } catch (e) {
+      console.warn('Charts error:', e);
+    }
+  }, 100);
+}
+
+function calculateTotalVolume() {
+  let total = 0;
+  Object.values(state.program).forEach(sess => {
+    sess.exercises.forEach(ex => {
+      const reps = (typeof ex.reps === 'number') ? ex.reps : parseInt(String(ex.reps).split('-')[0]) || 0;
+      const w = state.weights[ex.name] || ex.weight || 0;
+      total += (w * reps * ex.sets);
+    });
+  });
+  return total;
+}
+
+function calculateProgressData() {
+  const progress = {};
+  Object.keys(PROGRESSION_TARGETS).forEach(exName => {
+    const target = PROGRESSION_TARGETS[exName];
+    const current = state.weights[exName] || target.start;
+    progress[exName] = {
+      current,
+      target: target.target,
+      progress: ((current - target.start) / (target.target - target.start)) * 100
+    };
+  });
+  return progress;
+}
+
+function renderAdvancedCharts(progressData) {
+  // Chart de progression
+  const ctx1 = document.getElementById('chartProgress').getContext('2d');
+  new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(progressData),
+      datasets: [{
+        label: 'Actuel (kg)',
+        data: Object.values(progressData).map(p => p.current),
+        backgroundColor: 'rgba(255, 159, 10, 0.8)',
+        borderColor: 'rgba(255, 159, 10, 1)',
+        borderWidth: 1
+      }, {
+        label: 'Objectif S26 (kg)',
+        data: Object.values(progressData).map(p => p.target),
+        backgroundColor: 'rgba(255, 123, 0, 0.6)',
+        borderColor: 'rgba(255, 123, 0, 1)',
+        borderWidth: 1,
+        type: 'line',
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: { display: true, text: 'Progression vs Objectifs' }
+      }
+    }
+  });
+
+  // Chart volume musculaire
+  const ctx2 = document.getElementById('chartMuscleVolume').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Dos', 'Pecs', 'Jambes', 'Épaules', 'Biceps', 'Triceps'],
+      datasets: [{
+        data: [30, 22, 23, 10, 19, 20],
+        backgroundColor: [
+          'rgba(255, 159, 10, 0.8)',
+          'rgba(255, 123, 0, 0.8)',
+          'rgba(255, 85, 0, 0.8)',
+          'rgba(255, 45, 0, 0.8)',
+          'rgba(255, 159, 10, 0.6)',
+          'rgba(255, 123, 0, 0.6)'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: { display: true, text: 'Volume Hebdomadaire par Muscle' }
+      }
+    }
+  });
 }
 
 // ========== UTILITY FUNCTIONS ==========
@@ -857,30 +1128,13 @@ function toggleView() {
   document.getElementById('viewToggle').textContent = exerciseView ? '⬅️ Retour Séances' : '🌀 Vue Exercices';
 }
 
-function openStats() {
-  openModal(`
-    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📊 Statistiques • Semaine ${state.week}</h3>
-    <div style="display: grid; grid-template-columns: 1fr; gap: 20px">
-      <canvas id="chartVolumePro" style="width: 100%; height: 200px"></canvas>
-      <canvas id="chartMusclePro" style="width: 100%; height: 200px"></canvas>
-    </div>
-  `);
-  
-  setTimeout(() => {
-    try {
-      renderCharts();
-    } catch (e) {
-      console.warn('Charts error:', e);
-    }
-  }, 100);
-}
-
 function exportCSV() {
-  let csv = 'Exercice,Semaine,Poids,Reps,Date\n';
+  let csv = 'Exercice,Semaine,Poids,Reps,Date,Volume\n';
   Object.entries(state.hist).forEach(([exName, records]) => {
     records.forEach(record => {
       const date = new Date(record.ts).toLocaleDateString();
-      csv += `"${exName}",${record.week},${record.weight},${record.reps},${date}\n`;
+      const volume = record.weight * record.reps;
+      csv += `"${exName}",${record.week},${record.weight},${record.reps},${date},${volume}\n`;
     });
   });
   
@@ -888,7 +1142,7 @@ function exportCSV() {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `planetarium_data_s${state.week}.csv`;
+  a.download = `planetarium_hybrid_master51_s${state.week}.csv`;
   a.click();
   window.URL.revokeObjectURL(url);
   
@@ -915,69 +1169,18 @@ function prevWeek() {
 }
 
 function nextWeek() {
-  state.week++;
-  saveState();
+  if (state.week < 26) {
+    state.week++;
+    saveState();
     renderAll();
-  showQuick(`Semaine ${state.week}`, '#ffb347');
-}
-
-// ========== CHARTS ==========
-function renderCharts() {
-  const sessions = Object.values(state.program);
-  const labels = sessions.map(s => s.title.split(' - ')[0]);
-  const volumes = sessions.map(s => 
-    s.exercises.reduce((acc, ex) => 
-      acc + ((state.weights[ex.name] || ex.weight || 0) * 
-      (parseInt(String(ex.reps).split('-')[0]) || 0) * ex.sets), 0)
-  );
-
-  const ctx = document.getElementById('chartVolumePro').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Volume (kg)',
-        data: volumes,
-        backgroundColor: 'rgba(255, 159, 10, 0.8)',
-        borderColor: 'rgba(255, 159, 10, 1)',
-        borderWidth: 1,
-        borderRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        title: { display: true, text: 'Volume par séance' }
-      }
+    showQuick(`Semaine ${state.week}`, '#ffb347');
+    
+    // Vérifier les deloads
+    const deloadWeeks = [6, 12, 18, 24, 26];
+    if (deloadWeeks.includes(state.week)) {
+      showQuick('⚠️ SEMAINE DELOAD - Réduire charges de 40%', '#ffb347');
     }
-  });
-
-  const ctx2 = document.getElementById('chartMusclePro').getContext('2d');
-  new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: ['Pecs', 'Dos', 'Jambes', 'Épaules'],
-      datasets: [{
-        data: [35, 25, 25, 15],
-        backgroundColor: [
-          'rgba(255, 159, 10, 0.8)',
-          'rgba(255, 123, 0, 0.8)',
-          'rgba(255, 85, 0, 0.8)',
-          'rgba(255, 45, 0, 0.8)'
-        ],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom' },
-        title: { display: true, text: 'Répartition musculaire' }
-      }
-    }
-  });
+  }
 }
 
 // ========== INITIALISATION ==========
