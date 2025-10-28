@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Planetarium — HYBRID MASTER 51</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #090c11;
+  --card: #111622;
+  --card-2: #141a28;
+  --accent: #ff9f0a;
+  --accent-2: #ff7b00;
+  --muted: #9ba3b8;
+  --danger: #FF3B30;
+  --success: #10b981;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: linear-gradient(180deg, #06070a 0%, var(--bg) 100%);
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(17, 22, 34, 0.8);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 159, 10, 0.1);
+}
+
+.logo { font-size: 48px; }
+.title {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.card {
+  background: rgba(17, 22, 34, 0.9);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(255, 159, 10, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.programs {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.row { display: flex; gap: 16px; align-items: center; }
+.left { flex: 1; }
+.right { width: 400px; }
+
+.btn {
+  background: rgba(40, 44, 52, 0.8);
+  border: 1px solid rgba(255, 159, 10, 0.2);
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn.ios {
+  padding: 16px 24px;
+  border-radius: 18px;
+  font-weight: 700;
+}
+
+.btn.ios.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0b0f17;
+  border: none;
+}
+
+.btn.ios.danger {
+  background: linear-gradient(135deg, #ff5a5a, #ff3b30);
+  color: #111;
+  border: none;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  padding: 20px;
+  border-radius: 18px;
+  color: #071021;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
+.exercise-card {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, var(--card), var(--card-2));
+  margin-bottom: 12px;
+}
+
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.exercise-name {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.exercise-meta {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.exercise-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  padding: 0 20px;
+}
+
+.exercise-details.open {
+  max-height: 1000px;
+  padding: 20px;
+}
+
+.rest-timer {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  background: var(--card);
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 159, 10, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 1000;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.timer-text {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 24px;
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.heat-cell {
+  background: rgba(255, 255, 255, 0.03);
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.heat-cell.c-low { background: linear-gradient(135deg, #332a1a, #705d3c); }
+.heat-cell.c-mid { background: linear-gradient(135deg, #ff9f0a, #ff7b00); }
+.heat-cell.c-high { background: linear-gradient(135deg, #ff5500, #ff2d00); color: #fff; }
+.heat-cell.c-max { background: linear-gradient(135deg, #ff2d00, #ff0000); color: #fff; }
+
+.set-input {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 14px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: rgba(17, 22, 34, 0.95);
+  border-radius: 24px;
+  padding: 30px;
+  border: 1px solid rgba(255, 159, 10, 0.2);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 1024px) {
+  .programs { grid-template-columns: 1fr; }
+  .right { width: 100%; }
+}
+
+.technique-banner {
+  background: linear-gradient(135deg, rgba(255, 159, 10, 0.1), rgba(255, 120, 0, 0.05));
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 159, 10, 0.15);
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.small {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 40px;
+  padding: 20px;
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">🪐</div>
+    <div style="flex: 1">
+      <div class="title">Planetarium</div>
+      <div class="small">Programme · Analyse & Heatmap</div>
+    </div>
+    <button class="btn ios primary" onclick="openDayExerciseManager()">🧩 Gérer les exercices</button>
+  </div>
+
+  <div class="programs">
+    <div class="left">
+      <div class="card row" style="justify-content: space-between; align-items: center; margin-bottom: 16px">
+        <div>
+          <div style="font-weight: 800; font-size: 20px">Semaine <span id="weekDisplay">1</span></div>
+          <div class="small" id="blockName">Bloc 1 - Fondation</div>
+        </div>
+        <div class="row">
+          <button id="prevWeek" class="btn ios">← Préc.</button>
+          <button id="nextWeek" class="btn ios primary">Suiv. →</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-bottom: 16px">
+        <button id="viewToggle" class="btn ios primary">🌀 Vue Exercices</button>
+      </div>
+
+      <div class="card" style="margin-bottom: 16px">
+        <div style="font-weight: 800; font-size: 18px; margin-bottom: 8px">Séances disponibles</div>
+        <div class="small" style="margin-bottom: 12px">Cliquez pour ouvrir</div>
+        <div id="progList" class="session-list"></div>
+      </div>
+
+      <div id="exerciseArea"></div>
+    </div>
+
+    <div class="right">
+      <div class="card" style="margin-bottom: 16px">
+        <div style="font-weight: 800; font-size: 18px; margin-bottom: 8px">Tableau de bord</div>
+        <div class="small" id="quickMsg" style="margin-bottom: 16px">Prêt.</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px">
+          <button id="openStats" class="btn ios">📊 Statistiques</button>
+          <button id="exportCSV" class="btn ios">💾 Export CSV</button>
+          <button id="resetApp" class="btn ios danger">⚠️ Reset App</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight: 800; font-size: 18px; margin-bottom: 12px">Heatmap de charge (semaine)</div>
+        <div id="heatmap" class="heatmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer small">
+    © 2025 — Planetarium • HYBRID MASTER 51
+  </div>
+</div>
+
+<div id="restTimer" class="rest-timer" style="display: none">
+  <div>
+    <div class="timer-text" id="timerText">0:00</div>
+    <div class="small">Temps restant</div>
+  </div>
+  <div style="margin-left: 16px; flex: 1">
+    <div style="font-weight: 800; font-size: 16px" id="nextExerciseName">Repos</div>
+  </div>
+  <button id="skipTimer" class="btn ios">✕</button>
+</div>
+
+<script>
+// ========== STATE & DATA ==========
+const STATE_KEY = 'hm51_planetarium_v1';
+let state = null;
+let currentSessionKey = null;
+let exerciseView = false;
+let restInterval = null, restRemaining = 0, restTotal = 0;
+
+// Programme HYBRID MASTER 51 basé sur le JSON
+const PROGRAM = {
+  dimanche: {
+    key: 'dimanche',
+    title: 'Dimanche - Dos + Jambes',
+    exercises: [
+      { name: 'Trap Bar Deadlift', sets: 5, reps: '6-8', rest: 120, weight: 75, tech: 'RPE 6-8' },
+      { name: 'Goblet Squat', sets: 4, reps: '10', rest: 75, weight: 25, tech: 'Tempo 3-1-2' },
+      { name: 'Lat Pulldown', sets: 4, reps: '10', rest: 90, weight: 60, tech: 'Contrôle' },
+      { name: 'Spider Curl', sets: 4, reps: '12', rest: 75, weight: 12, tech: 'Tempo 2-1-2' }
+    ]
+  },
+  mardi: {
+    key: 'mardi',
+    title: 'Mardi - Pecs + Épaules',
+    exercises: [
+      { name: 'Dumbbell Press', sets: 5, reps: '10', rest: 105, weight: 22, tech: 'Cluster sets' },
+      { name: 'Cable Fly', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Tension continue' },
+      { name: 'Lateral Raises', sets: 5, reps: '15', rest: 75, weight: 8, tech: 'Contrôle' },
+      { name: 'Face Pull', sets: 5, reps: '15', rest: 60, weight: 20, tech: 'Myo-Reps' }
+    ]
+  },
+  vendredi: {
+    key: 'vendredi',
+    title: 'Vendredi - Full',
+    exercises: [
+      { name: 'Landmine Row', sets: 5, reps: '10', rest: 105, weight: 55, tech: 'Tempo 2-1-2' },
+      { name: 'Leg Curl', sets: 5, reps: '12', rest: 75, weight: 40, tech: 'Contrôle' },
+      { name: 'Dumbbell Fly', sets: 4, reps: '12', rest: 60, weight: 10, tech: 'Étirement' },
+      { name: 'EZ Bar Curl', sets: 5, reps: '12', rest: 75, weight: 25, tech: 'Myo-Reps' }
+    ]
+  }
+};
+
+function defaultState() {
+  const s = {
+    week: 1,
+    program: JSON.parse(JSON.stringify(PROGRAM)),
+    weights: {},
+    hist: {},
+    customExercises: []
+  };
+  Object.values(s.program).forEach(sess => 
+    sess.exercises.forEach(e => s.weights[e.name] = e.weight || 0)
+  );
+  return s;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('localStorage read failed', e);
+  }
+  return defaultState();
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('localStorage save failed', e);
+  }
+}
+
+// ========== INITIALISATION ==========
+function init() {
+  state = loadState();
+  setupEventListeners();
+  renderAll();
+}
+
+function setupEventListeners() {
+  document.getElementById('viewToggle').addEventListener('click', toggleView);
+  document.getElementById('openStats').addEventListener('click', openStats);
+  document.getElementById('exportCSV').addEventListener('click', exportCSV);
+  document.getElementById('resetApp').addEventListener('click', resetApp);
+  document.getElementById('skipTimer').addEventListener('click', stopRest);
+  document.getElementById('prevWeek').addEventListener('click', prevWeek);
+  document.getElementById('nextWeek').addEventListener('click', nextWeek);
+}
+
+// ========== RENDER FUNCTIONS ==========
+function renderHeader() {
+  document.getElementById('weekDisplay').textContent = state.week;
+  const block = document.getElementById('blockName');
+  if (state.week <= 5) block.textContent = 'Bloc 1 - Fondation';
+  else if (state.week <= 11) block.textContent = 'Bloc 2 - Surcharge';
+  else block.textContent = 'Bloc 3 - Intensification';
+}
+
+function renderProgramList() {
+  const list = document.getElementById('progList');
+  list.innerHTML = '';
+  Object.values(state.program).forEach(s => {
+    const totalSets = s.exercises.reduce((a, b) => a + b.sets, 0);
+    const btn = document.createElement('button');
+    btn.className = 'session-btn';
+    btn.innerHTML = `
+      <div style="font-weight: 800; font-size: 16px">${s.title}</div>
+      <div class="small">${s.exercises.length} ex • ${totalSets} séries</div>
+    `;
+    btn.onclick = () => openSession(s.key);
+    list.appendChild(btn);
+  });
+}
+
+function renderHeatmap() {
+  const el = document.getElementById('heatmap');
+  el.innerHTML = '';
+  const days = 7;
+  const dayVolumes = new Array(days).fill(0);
+  const sessionDayMap = { dimanche: 0, mardi: 2, vendredi: 5 };
+  
+  Object.values(state.program).forEach(sess => {
+    const vol = sess.exercises.reduce((acc, ex) => {
+      const reps = (typeof ex.reps === 'number') ? ex.reps : parseInt(String(ex.reps).split('-')[0]) || 0;
+      const w = state.weights[ex.name] || ex.weight || 0;
+      return acc + (w * reps * ex.sets);
+    }, 0);
+    const d = sessionDayMap[sess.key] || 0;
+    dayVolumes[d] += vol;
+  });
+
+  const max = Math.max(...dayVolumes, 1);
+  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  
+  dayNames.forEach((day, i) => {
+    const v = dayVolumes[i];
+    const ratio = v / max;
+    let cls = '';
+    if (ratio > 0.75) cls = 'c-max';
+    else if (ratio > 0.5) cls = 'c-high';
+    else if (ratio > 0.25) cls = 'c-mid';
+    else cls = 'c-low';
+    
+    const div = document.createElement('div');
+    div.className = `heat-cell ${cls}`;
+    div.textContent = `${day} • ${Math.round(v / 1000)}k`;
+    el.appendChild(div);
+  });
+}
+
+function renderAll() {
+  renderHeader();
+  renderProgramList();
+  renderHeatmap();
+}
+
+// ========== SESSION MANAGEMENT ==========
+function openSession(key) {
+  currentSessionKey = key;
+  const arr = state.program[key].exercises;
+  const area = document.getElementById('exerciseArea');
+  area.innerHTML = '';
+
+  const sessionHeader = document.createElement('div');
+  sessionHeader.className = 'card';
+  sessionHeader.style.marginBottom = '16px';
+  sessionHeader.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <div style="font-weight: 800; font-size: 18px">${state.program[key].title}</div>
+      <div class="row">
+        <button class="btn ios" onclick="openAddExerciseModal('${key}')">➕ Ajouter</button>
+        <button class="btn ios danger" onclick="clearSession('${key}')">🗑️ Vider</button>
+      </div>
+    </div>
+  `;
+  area.appendChild(sessionHeader);
+
+  arr.forEach((ex, idx) => {
+    const exId = sanitizeId(ex.name);
+    const card = document.createElement('div');
+    card.className = 'exercise-card';
+    card.style.marginBottom = '12px';
+
+    const header = document.createElement('div');
+    header.className = 'exercise-header';
+    header.innerHTML = `
+      <div style="flex: 1">
+        <div class="exercise-name">${ex.name}</div>
+        <div class="exercise-meta">${ex.sets}× ${ex.reps} • ${ex.rest}s • ${state.weights[ex.name] || ex.weight}kg</div>
+      </div>
+      <div style="color: var(--accent); font-size: 18px">▼</div>
+    `;
+    header.addEventListener('click', () => toggleDetails(ex));
+
+    const details = document.createElement('div');
+    details.className = 'exercise-details';
+    details.id = 'details-' + exId;
+
+    card.appendChild(header);
+    card.appendChild(details);
+    area.appendChild(card);
+  });
+
+  showQuick('Séance ouverte', '#ffb347');
+}
+
+function toggleDetails(ex) {
+  const exId = sanitizeId(ex.name);
+  const details = document.getElementById('details-' + exId);
+  if (!details) return;
+
+  const wasOpen = details.classList.contains('open');
+  
+  document.querySelectorAll('.exercise-details.open').forEach(d => {
+    if (d !== details) {
+      d.classList.remove('open');
+      d.innerHTML = '';
+    }
+  });
+
+  if (wasOpen) {
+    details.classList.remove('open');
+    details.innerHTML = '';
+    return;
+  }
+
+  renderExerciseDetails(ex);
+  details.classList.add('open');
+}
+
+function renderExerciseDetails(ex) {
+  const exId = sanitizeId(ex.name);
+  const details = document.getElementById('details-' + exId);
+  if (!details) return;
+
+  const w = state.weights[ex.name] || ex.weight || 0;
+  let setsHtml = '';
+  
+  for (let i = 1; i <= ex.sets; i++) {
+    setsHtml += `
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 8px">
+        <div class="small" style="display: flex; align-items: center">Série ${i}</div>
+        <input class="set-input w-${exId}-${i}" type="number" step="0.5" value="${w}" placeholder="KG" />
+        <input class="set-input r-${exId}-${i}" type="number" value="${(typeof ex.reps === 'number') ? ex.reps : parseInt(String(ex.reps).split('-')[0]) || 0}" placeholder="REPS" />
+      </div>
+    `;
+  }
+
+  details.innerHTML = `
+    <div class="technique-banner">✨ ${ex.tech}</div>
+    ${setsHtml}
+    <div style="display: flex; gap: 12px; margin-top: 16px">
+      <button class="btn ios primary" onclick="savePerf('${encodeURIComponent(ex.name)}')">💾 Enregistrer</button>
+      <button class="btn ios" onclick="openModifyWeight('${encodeURIComponent(ex.name)}')">✏️ Poids</button>
+      <button class="btn ios" onclick="startRestCountdown(${ex.rest}, '${ex.name}')">⏱️ Repos ${ex.rest}s</button>
+      <button class="btn ios danger" onclick="removeExerciseFromSession('${encodeURIComponent(ex.name)}')">🗑️ Retirer</button>
+    </div>
+  `;
+}
+
+// ========== EXERCISE ACTIONS ==========
+function openAddExerciseModal(sessionKey) {
+  openModal(`
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">Ajouter un exercice</h3>
+    <div style="display: grid; gap: 12px">
+      <input id="globalExName" class="set-input" placeholder="Nom de l'exercice" />
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+        <input id="globalExSets" class="set-input" type="number" value="3" placeholder="Séries" />
+        <input id="globalExReps" class="set-input" value="10" placeholder="Reps" />
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+        <input id="globalExRest" class="set-input" type="number" value="90" placeholder="Repos (s)" />
+        <input id="globalExWeight" class="set-input" type="number" value="20" placeholder="Poids (kg)" />
+      </div>
+      <input id="globalExTech" class="set-input" value="Standard" placeholder="Technique" />
+      <div style="display: flex; gap: 12px; margin-top: 16px">
+        <button class="btn ios primary" onclick="saveGlobalExercise('${sessionKey}')">Ajouter</button>
+        <button class="btn ios" onclick="closeModal()">Annuler</button>
+      </div>
+    </div>
+  `);
+}
+
+function saveGlobalExercise(sessionKey) {
+  const name = document.getElementById('globalExName').value.trim();
+  if (!name) {
+    alert('Nom requis');
+    return;
+  }
+
+  const newEx = {
+    name,
+    sets: parseInt(document.getElementById('globalExSets').value) || 3,
+    reps: document.getElementById('globalExReps').value || 10,
+    rest: parseInt(document.getElementById('globalExRest').value) || 90,
+    weight: parseFloat(document.getElementById('globalExWeight').value) || 0,
+    tech: document.getElementById('globalExTech').value || 'Standard'
+  };
+
+  state.program[sessionKey].exercises.push(newEx);
+  state.weights[newEx.name] = newEx.weight;
+  saveState();
+  closeModal();
+  renderProgramList();
+  if (currentSessionKey === sessionKey) openSession(sessionKey);
+  showQuick('Exercice ajouté ✓', '#10b981');
+}
+
+function removeExerciseFromSession(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  if (!currentSessionKey || !confirm(`Retirer "${name}" de cette séance ?`)) return;
+  
+  state.program[currentSessionKey].exercises = state.program[currentSessionKey].exercises.filter(ex => ex.name !== name);
+  saveState();
+  openSession(currentSessionKey);
+  showQuick('Exercice retiré', '#ffb3b3');
+}
+
+function clearSession(sessionKey) {
+  if (!confirm('Vider cette séance ?')) return;
+  state.program[sessionKey].exercises = [];
+  saveState();
+  if (currentSessionKey === sessionKey) openSession(sessionKey);
+  showQuick('Séance vidée', '#ffb3b3');
+}
+
+function openModifyWeight(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  openModal(`
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">${name}</h3>
+    <input id="modalNewWeight" type="number" class="set-input" value="${state.weights[name] || 0}" 
+           style="width: 100%; padding: 14px; font-size: 16px" />
+    <div style="display: flex; gap: 12px; margin-top: 20px">
+      <button class="btn ios primary" onclick="saveWeight('${encodeURIComponent(name)}')">Enregistrer</button>
+      <button class="btn ios" onclick="closeModal()">Annuler</button>
+    </div>
+  `);
+}
+
+function saveWeight(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  const v = parseFloat(document.getElementById('modalNewWeight').value);
+  if (isNaN(v) || v < 0) {
+    alert('Poids invalide');
+    return;
+  }
+
+  const old = state.weights[name] || 0;
+  state.weights[name] = v;
+  saveState();
+  closeModal();
+  if (currentSessionKey) openSession(currentSessionKey);
+  showQuick(`Poids ${name}: ${old} → ${v} kg`, '#10b981');
+}
+
+function savePerf(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  if (!currentSessionKey) {
+    showQuick('Session introuvable', '#ef4444');
+    return;
+  }
+
+  const session = state.program[currentSessionKey];
+  const ex = session.exercises.find(e => e.name === name);
+  if (!ex) {
+    showQuick('Exercice introuvable', '#ef4444');
+    return;
+  }
+
+  const exId = sanitizeId(name);
+  let sets = [];
+  for (let i = 1; i <= ex.sets; i++) {
+    const wEl = document.querySelector('.w-' + exId + '-' + i);
+    const rEl = document.querySelector('.r-' + exId + '-' + i);
+    if (!wEl || !rEl) continue;
+    const w = parseFloat(wEl.value) || 0;
+    const r = parseInt(rEl.value) || 0;
+    if (r > 0) sets.push({ w, r });
+  }
+
+  if (sets.length === 0) {
+    showQuick('Entrez au moins une répétition', '#ef4444');
+    return;
+  }
+
+  const best = sets.reduce((a, b) => b.r > a.r ? b : a, sets[0]);
+  if (!state.hist[name]) state.hist[name] = [];
+  state.hist[name].push({
+    week: state.week,
+    weight: best.w,
+    reps: best.r,
+    ts: Date.now(),
+    allSets: sets
+  });
+  state.weights[name] = best.w;
+  saveState();
+  showQuick(`✅ ${name}: ${best.r} reps @ ${best.w}kg`);
+  if (currentSessionKey) openSession(currentSessionKey);
+}
+
+// ========== TIMER FUNCTIONS ==========
+function startRestCountdown(seconds, nextText) {
+  stopRest();
+  restTotal = Math.max(1, Math.floor(seconds));
+  restRemaining = restTotal;
+  const box = document.getElementById('restTimer');
+  document.getElementById('nextExerciseName').textContent = nextText || 'Repos';
+  box.style.display = 'flex';
+  updateRestUI();
+  
+  restInterval = setInterval(() => {
+    restRemaining--;
+    updateRestUI();
+    if (restRemaining <= 0) {
+      stopRest();
+      showQuick('⏱️ Repos terminé', '#ffb347');
+    }
+  }, 1000);
+}
+
+function stopRest() {
+  if (restInterval) {
+    clearInterval(restInterval);
+    restInterval = null;
+  }
+  restRemaining = 0;
+  restTotal = 0;
+  const box = document.getElementById('restTimer');
+  if (box) box.style.display = 'none';
+}
+
+function updateRestUI() {
+  const txt = document.getElementById('timerText');
+  if (!txt) return;
+  const mm = Math.floor(restRemaining / 60);
+  const ss = restRemaining % 60;
+  txt.textContent = `${mm}:${ss < 10 ? ('0' + ss) : ss}`;
+}
+
+// ========== MODAL SYSTEM ==========
+function openModal(html) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-content">
+      ${html}
+      <div style="text-align: right; margin-top: 24px">
+        <button class="btn ios" onclick="closeModal()">Fermer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function closeModal() {
+  const overlay = document.querySelector('.modal-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+// ========== DAY EXERCISE MANAGER ==========
+function openDayExerciseManager() {
+  let html = `
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📅 Gérer les Séances</h3>
+    <div style="display: flex; flex-direction: column; gap: 16px">
+  `;
+  
+  Object.values(state.program).forEach(s => {
+    html += `
+      <div style="background: rgba(255, 255, 255, 0.03); padding: 20px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05)">
+        <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px">${s.title}</div>
+        <div class="small" style="margin-bottom: 12px">
+          ${s.exercises.map(e => e.name).join(' • ') || '<em style="opacity: 0.6">Aucun exercice</em>'}
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button class="btn ios" onclick="openAddExerciseModal('${s.key}'); closeModal();">➕ Ajouter</button>
+          <button class="btn ios danger" onclick="clearSession('${s.key}'); closeModal();">🗑️ Vider</button>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `</div>`;
+  openModal(html);
+  showQuick('Gestion exercices ouverte', '#ffb347');
+}
+
+// ========== UTILITY FUNCTIONS ==========
+function showQuick(msg, color) {
+  const el = document.getElementById('quickMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color || '';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => {
+    el.textContent = 'Prêt.';
+    el.style.color = '';
+  }, 2600);
+}
+
+function sanitizeId(name) {
+  return name.replace(/[^a-z0-9]/gi, '_');
+}
+
+// ========== EVENT HANDLERS ==========
+function toggleView() {
+  exerciseView = !exerciseView;
+  document.getElementById('progList').style.display = exerciseView ? 'none' : 'flex';
+  document.getElementById('exerciseArea').style.display = exerciseView ? 'block' : 'none';
+  document.getElementById('viewToggle').textContent = exerciseView ? '⬅️ Retour Séances' : '🌀 Vue Exercices';
+}
+
+function openStats() {
+  openModal(`
+    <h3 style="font-weight: 800; color: var(--accent); margin-bottom: 20px">📊 Statistiques • Semaine ${state.week}</h3>
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px">
+      <canvas id="chartVolumePro" style="width: 100%; height: 200px"></canvas>
+      <canvas id="chartMusclePro" style="width: 100%; height: 200px"></canvas>
+    </div>
+  `);
+  
+  setTimeout(() => {
+    try {
+      renderCharts();
+    } catch (e) {
+      console.warn('Charts error:', e);
+    }
+  }, 100);
+}
+
+function exportCSV() {
+  let csv = 'Exercice,Semaine,Poids,Reps,Date\n';
+  Object.entries(state.hist).forEach(([exName, records]) => {
+    records.forEach(record => {
+      const date = new Date(record.ts).toLocaleDateString();
+      csv += `"${exName}",${record.week},${record.weight},${record.reps},${date}\n`;
+    });
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `planetarium_data_s${state.week}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+  
+  showQuick('CSV exporté ✓', '#10b981');
+}
+
+function resetApp() {
+  if (confirm('Reset complet ? Toutes les données seront perdues.')) {
+    localStorage.removeItem(STATE_KEY);
+    state = defaultState();
+    saveState();
+    renderAll();
+    showQuick('App resetée', '#ffb347');
+  }
+}
+
+function prevWeek() {
+  if (state.week > 1) {
+    state.week--;
+    saveState();
+    renderAll();
+    showQuick(`Semaine ${state.week}`, '#ffb347');
+  }
+}
+
+function nextWeek() {
+  state.week++;
+  saveState();
+    renderAll();
+  showQuick(`Semaine ${state.week}`, '#ffb347');
+}
+
+// ========== CHARTS ==========
+function renderCharts() {
+  const sessions = Object.values(state.program);
+  const labels = sessions.map(s => s.title.split(' - ')[0]);
+  const volumes = sessions.map(s => 
+    s.exercises.reduce((acc, ex) => 
+      acc + ((state.weights[ex.name] || ex.weight || 0) * 
+      (parseInt(String(ex.reps).split('-')[0]) || 0) * ex.sets), 0)
+  );
+
+  const ctx = document.getElementById('chartVolumePro').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Volume (kg)',
+        data: volumes,
+        backgroundColor: 'rgba(255, 159, 10, 0.8)',
+        borderColor: 'rgba(255, 159, 10, 1)',
+        borderWidth: 1,
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Volume par séance' }
+      }
+    }
+  });
+
+  const ctx2 = document.getElementById('chartMusclePro').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Pecs', 'Dos', 'Jambes', 'Épaules'],
+      datasets: [{
+        data: [35, 25, 25, 15],
+        backgroundColor: [
+          'rgba(255, 159, 10, 0.8)',
+          'rgba(255, 123, 0, 0.8)',
+          'rgba(255, 85, 0, 0.8)',
+          'rgba(255, 45, 0, 0.8)'
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        title: { display: true, text: 'Répartition musculaire' }
+      }
+    }
+  });
+}
+
+// ========== INITIALISATION ==========
+init();
+
+// Expose for debugging
+window._planetarium = { state, renderAll, openSession, saveState };
+</script>
+</body>
+</html>
